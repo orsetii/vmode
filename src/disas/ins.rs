@@ -245,6 +245,8 @@ pub enum MATHI_OPS {
     slti = 0b010,
     sltiu = 0b011,
     xori = 0b100,
+    ori = 0b110,
+    andi = 0b111,
     slli = 0b001,
     srli_srai = 0b101,
     err = 0xFF,
@@ -252,14 +254,20 @@ pub enum MATHI_OPS {
 impl From<u32> for MATHI_OPS {
     fn from(v: u32) -> Self {
         use MATHI_OPS::*;
-        match v {
+        let res = match v {
             0b000 => addi,
             0b001 => slli,
             0b010 => slti,
             0b011 => sltiu,
             0b100 => xori,
+            0b110 => ori,
             0b101 => srli_srai,
+            0b111 => andi,
             _ => err,
+        };
+        if res == err {
+            panic!("ERROR INSTRUCTION {:b}", v);
         }
+        res
     }
 }
