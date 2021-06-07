@@ -80,6 +80,9 @@ fn parse_until_err<'a>(buf: &'a [u8]) -> std::io::Result<()> {
                     );
                 }
             }
+            Opcode::JAL | Opcode::JALR => {
+                print_jmp(i, ins, opcode);
+            }
             _ => {}
         }
 
@@ -91,6 +94,7 @@ fn parse_until_err<'a>(buf: &'a [u8]) -> std::io::Result<()> {
     Ok(())
 }
 
+#[inline]
 fn print_ins<S, U>(pc_val: usize, full_ins: u32, ins_name: S, regs: &[Register], operands: &[U])
 where
     S: Into<String> + std::fmt::Display,
@@ -111,4 +115,35 @@ where
         s = format!("{},{:#x?}", s, i);
     }
     println!("{:>4x}:   {:>8x}   {:>8} {}", pc_val, full_ins, ins_name, s)
+}
+
+/// printing jumps is done in a seperate function so we can easily not print
+/// the register if it is zero
+fn print_jmp(pc_val: usize, ins: u32, opcode: Opcode) {
+    match opcode {
+        Opcode::JAL => {
+            let decoded_ins = UType::from(ins);
+            // TODO check for the pseudo-instructions as specficed in p.110 of the spec
+            print_ins(pc_val, ins, "jal", &[decoded_ins.rd], &[decoded_ins.imm]);
+        }
+        Opcode::JALR => {
+            let decoded_ins = IType::from(ins);
+            // check for and print `ret`
+            if decoded_ins.rd == Register::Zero
+                && decoded_ins.rs1 == Register::Ra
+                && decoded_ins.imm == 0
+            {
+                return println!("{:>4x}:   {:>8x}   {:>8}", pc_val, ins, "ret");
+            }
+
+            print_ins(
+                pc_val,
+                ins,
+                "jalr",
+                &[decoded_ins.rd, decoded_ins.rs1],
+                &[decoded_ins.imm],
+            );
+        }
+        _ => return,
+    }
 }

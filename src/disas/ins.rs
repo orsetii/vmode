@@ -3,6 +3,7 @@ pub enum Opcode {
     LUI = 0b0110111,
     AUIPC = 0b0010111,
     JAL = 0b1101111,
+    JALR = 0b1100111,
     /// the opcode for BEQ, BNE, BLT, BGE, BLTU and BGEU.
     BXX = 0b1100011,
     /// the opcode for LB, LH, LW, LBU and LHU
@@ -23,6 +24,7 @@ impl From<u32> for Opcode {
             0b0110111 => LUI,
             0b0010111 => AUIPC,
             0b1101111 => JAL,
+            0b1100111 => JALR,
             0b1100011 => BXX,
             0b0000011 => LX,
             0b0100011 => SX,
@@ -33,7 +35,7 @@ impl From<u32> for Opcode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum Register {
     /// Hard-Coded Zero
@@ -254,7 +256,7 @@ pub enum MATHI_OPS {
 impl From<u32> for MATHI_OPS {
     fn from(v: u32) -> Self {
         use MATHI_OPS::*;
-        let res = match v {
+        match v {
             0b000 => addi,
             0b001 => slli,
             0b010 => slti,
@@ -263,6 +265,33 @@ impl From<u32> for MATHI_OPS {
             0b110 => ori,
             0b101 => srli_srai,
             0b111 => andi,
+            _ => err,
+        }
+    }
+}
+
+#[allow(non_camel_case_types)]
+#[repr(u32)]
+#[derive(Debug, PartialEq)]
+pub enum BXX_OPS {
+    beq = 0b000,
+    bne = 0b001,
+    blt = 0b100,
+    bge = 0b101,
+    bltu = 0b110,
+    bgeu = 0b111,
+    err = 0xFF,
+}
+impl From<u32> for BXX_OPS {
+    fn from(v: u32) -> Self {
+        use BXX_OPS::*;
+        let res = match v {
+            0b000 => beq,
+            0b001 => bne,
+            0b100 => blt,
+            0b101 => bge,
+            0b110 => bltu,
+            0b111 => bgeu,
             _ => err,
         };
         if res == err {
