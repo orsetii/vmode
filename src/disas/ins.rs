@@ -208,7 +208,7 @@ impl InsType for UType {}
 
 #[allow(non_camel_case_types)]
 #[repr(u32)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum MATHX_OPS {
     add_sub = 0b000,
     sll = 0b001,
@@ -232,6 +232,33 @@ impl From<u32> for MATHX_OPS {
             0b101 => srl_sra,
             0b110 => or,
             0b111 => and,
+            _ => err,
+        }
+    }
+}
+
+#[allow(non_camel_case_types)]
+#[repr(u32)]
+#[derive(Debug, PartialEq)]
+pub enum MATHI_OPS {
+    addi = 0b000,
+    slti = 0b010,
+    sltiu = 0b011,
+    xori = 0b100,
+    slli = 0b001,
+    srli_srai = 0b101,
+    err = 0xFF,
+}
+impl From<u32> for MATHI_OPS {
+    fn from(v: u32) -> Self {
+        use MATHI_OPS::*;
+        match v {
+            0b000 => addi,
+            0b001 => slli,
+            0b010 => slti,
+            0b011 => sltiu,
+            0b100 => xori,
+            0b101 => srli_srai,
             _ => err,
         }
     }

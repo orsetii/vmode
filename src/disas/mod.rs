@@ -31,13 +31,54 @@ fn parse_until_err<'a>(buf: &'a [u8]) -> std::io::Result<()> {
         match opcode {
             Opcode::MATHX => {
                 let decoded_ins = RType::from(ins);
+                let op = MATHX_OPS::from(decoded_ins.funct3);
+                let op_name = match op {
+                    MATHX_OPS::add_sub => match decoded_ins.funct7 {
+                        0b0000000 => "add".to_string(),
+                        0b0100000 => "sub".to_string(),
+                        _ => unreachable!(),
+                    },
+                    MATHX_OPS::srl_sra => match decoded_ins.funct7 {
+                        0b0000000 => "srl".to_string(),
+                        0b0100000 => "sra".to_string(),
+                        _ => unreachable!(),
+                    },
+                    _ => format!("{:?}", op),
+                };
+
                 print_ins(
                     i,
                     ins,
-                    format!("{:?}", MATHX_OPS::from(decoded_ins.funct3)),
+                    op_name,
                     &[decoded_ins.rd, decoded_ins.rs1, decoded_ins.rs2],
                     &[decoded_ins.funct7],
                 );
+            }
+            Opcode::MATHI => {
+                let decoded_ins = IType::from(ins);
+                let op = MATHI_OPS::from(decoded_ins.funct3);
+                if op == MATHI_OPS::srli_srai {
+                    let decoded_ins = RType::from(ins);
+                    print_ins(
+                        i,
+                        ins,
+                        match decoded_ins.funct7 {
+                            0b0000000 => "srli".to_string(),
+                            0b0100000 => "srai".to_string(),
+                            _ => unreachable!(),
+                        },
+                        &[decoded_ins.rd, decoded_ins.rs1, decoded_ins.rs2],
+                        &[decoded_ins.funct7],
+                    );
+                } else {
+                    print_ins(
+                        i,
+                        ins,
+                        format!("{:?}", op),
+                        &[decoded_ins.rd, decoded_ins.rs1],
+                        &[decoded_ins.imm],
+                    );
+                }
             }
             _ => {}
         }
@@ -53,7 +94,7 @@ fn parse_until_err<'a>(buf: &'a [u8]) -> std::io::Result<()> {
 fn print_ins<S, U>(pc_val: usize, full_ins: u32, ins_name: S, regs: &[Register], operands: &[U])
 where
     S: Into<String> + std::fmt::Display,
-    U: std::ops::Add + std::fmt::Debug,
+    U: std::ops::Add + std::fmt::Debug + std::fmt::LowerHex,
 {
     let mut s = format!("{:?}", regs[0]);
     for i in regs[1..].iter() {
@@ -67,7 +108,7 @@ where
         if format!("{:?}", i) == "0" {
             continue;
         }
-        s = format!("{},{:x?}", s, i);
+        s = format!("{},{:#x?}", s, i);
     }
     println!("{:>4x}:   {:>8x}   {:>8} {}", pc_val, full_ins, ins_name, s)
 }
