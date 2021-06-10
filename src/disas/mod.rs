@@ -4,13 +4,15 @@ use super::{Mode, Mode::*};
 use ins::*;
 use std::fs;
 
+/// Disassembles a file from `path`, either in `Raw` or `ELF` mode.
+/// `Raw` mode parses the file from the start of the buffer as opcodes.
+/// `ELF` parses code sections as opcodes.
 pub fn disassemble<'a>(path: &'a str, mode: Mode) -> std::io::Result<()> {
     if mode == Raw {
         let f = fs::read(path)?;
         parse_until_err(&f[..])?;
     } else if mode == ELF {
-        // Parse headers
-        // then disas
+        todo!();
     } else {
         unreachable!();
     }
@@ -25,73 +27,78 @@ fn parse_until_err<'a>(buf: &'a [u8]) -> std::io::Result<()> {
     let len = buf.len();
     let mut i = 0_usize;
     loop {
-        let ins = u32::from_le_bytes([buf[i], buf[i + 1], buf[i + 2], buf[i + 3]]);
-        let opcode = Opcode::from(ins);
-
-        match opcode {
-            Opcode::MATHX => {
-                let decoded_ins = RType::from(ins);
-                let op = MATHX_OPS::from(decoded_ins.funct3);
-                let op_name = match op {
-                    MATHX_OPS::add_sub => match decoded_ins.funct7 {
-                        0b0000000 => "add".to_string(),
-                        0b0100000 => "sub".to_string(),
-                        _ => unreachable!(),
-                    },
-                    MATHX_OPS::srl_sra => match decoded_ins.funct7 {
-                        0b0000000 => "srl".to_string(),
-                        0b0100000 => "sra".to_string(),
-                        _ => unreachable!(),
-                    },
-                    _ => format!("{:?}", op),
-                };
-
-                print_ins(
-                    i,
-                    ins,
-                    op_name,
-                    &[decoded_ins.rd, decoded_ins.rs1, decoded_ins.rs2],
-                    &[decoded_ins.funct7],
-                );
-            }
-            Opcode::MATHI => {
-                let decoded_ins = IType::from(ins);
-                let op = MATHI_OPS::from(decoded_ins.funct3);
-                if op == MATHI_OPS::srli_srai {
-                    let decoded_ins = RType::from(ins);
-                    print_ins(
-                        i,
-                        ins,
-                        match decoded_ins.funct7 {
-                            0b0000000 => "srli".to_string(),
-                            0b0100000 => "srai".to_string(),
-                            _ => unreachable!(),
-                        },
-                        &[decoded_ins.rd, decoded_ins.rs1, decoded_ins.rs2],
-                        &[decoded_ins.funct7],
-                    );
-                } else {
-                    print_ins(
-                        i,
-                        ins,
-                        format!("{:?}", op),
-                        &[decoded_ins.rd, decoded_ins.rs1],
-                        &[decoded_ins.imm],
-                    );
-                }
-            }
-            Opcode::JAL | Opcode::JALR => {
-                print_jmp(i, ins, opcode);
-            }
-            _ => {}
-        }
-
+        parse_ins(
+            i,
+            u32::from_le_bytes([buf[i], buf[i + 1], buf[i + 2], buf[i + 3]]),
+        );
         if i + 4 >= len {
             break;
         }
         i += 4;
     }
     Ok(())
+}
+
+#[inline]
+fn parse_ins(i: usize, ins: u32) {
+    let opcode = Opcode::from(ins);
+    match opcode {
+        Opcode::MATHX => {
+            let decoded_ins = RType::from(ins);
+            let op = MATHX_OPS::from(decoded_ins.funct3);
+            let op_name = match op {
+                MATHX_OPS::add_sub => match decoded_ins.funct7 {
+                    0b0000000 => "add".to_string(),
+                    0b0100000 => "sub".to_string(),
+                    _ => unreachable!(),
+                },
+                MATHX_OPS::srl_sra => match decoded_ins.funct7 {
+                    0b0000000 => "srl".to_string(),
+                    0b0100000 => "sra".to_string(),
+                    _ => unreachable!(),
+                },
+                _ => format!("{:?}", op),
+            };
+
+            print_ins(
+                i,
+                ins,
+                op_name,
+                &[decoded_ins.rd, decoded_ins.rs1, decoded_ins.rs2],
+                &[decoded_ins.funct7],
+            );
+        }
+        Opcode::MATHI => {
+            let decoded_ins = IType::from(ins);
+            let op = MATHI_OPS::from(decoded_ins.funct3);
+            if op == MATHI_OPS::srli_srai {
+                let decoded_ins = RType::from(ins);
+                print_ins(
+                    i,
+                    ins,
+                    match decoded_ins.funct7 {
+                        0b0000000 => "srli".to_string(),
+                        0b0100000 => "srai".to_string(),
+                        _ => unreachable!(),
+                    },
+                    &[decoded_ins.rd, decoded_ins.rs1, decoded_ins.rs2],
+                    &[decoded_ins.funct7],
+                );
+            } else {
+                print_ins(
+                    i,
+                    ins,
+                    format!("{:?}", op),
+                    &[decoded_ins.rd, decoded_ins.rs1],
+                    &[decoded_ins.imm],
+                );
+            }
+        }
+        Opcode::JAL | Opcode::JALR => {
+            print_jmp(i, ins, opcode);
+        }
+        _ => {}
+    }
 }
 
 #[inline]
